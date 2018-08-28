@@ -9,11 +9,10 @@ import requests
 import pandas as pd
 #from bokeh.io import output_file, show
 from bokeh.palettes import brewer
-from bokeh.models import ColumnDataSource, TapTool, HoverTool
+from bokeh.models import ColumnDataSource, TapTool, HoverTool, DataTable, TableColumn, Div
 from bokeh.plotting import figure
 from bokeh.layouts import layout
 from bokeh.models.widgets import TextInput
-from bokeh.transform import factor_cmap
 from bokeh.io import curdoc
 
 # Create Input controls
@@ -90,12 +89,37 @@ data['now_cost'] = data['now_cost']/10
 
 # Default source 1 
 gameweeks = []
-GWpoints = {'Teams' : []}
+teampos = []
+teamcost = []  
+teamData = {'Team' : []}
+#GWpoints = {'Teams' : []}
 for GW in range(currentGW):
     gameweeks.append(str(GW+1))
     instr = str(GW+1)
-    GWpoints[instr] = []
-source1 = ColumnDataSource(GWpoints)
+    teamData[instr] = []
+#    GWpoints[instr] = []
+#source1 = ColumnDataSource(GWpoints)
+
+
+# Default source2pool
+#teampos = []
+#teamcost = []  
+#teamData = {'Team' : []}
+for position in range(18):
+    teampos.append('Pos' + str(position+1))
+    teamcost.append('Cost' + str(position+1))
+    
+    coststr = 'Cost' + str(position+1)
+    posstr = 'Pos' + str(position+1)
+    namestr = 'Name' + str(position+1)
+    
+    teamData[coststr] = []
+    teamData[posstr] = []
+    teamData[namestr] = []
+source1 = ColumnDataSource(teamData)
+
+#source2pool = ColumnDataSource(teamData)
+
 
 
 # Default source 2
@@ -112,22 +136,6 @@ for position in range(18):
 source2 = ColumnDataSource(teamData)
 
 
-# Default source2pool
-teampos = []
-teamcost = []  
-teamData = {'Team' : []}
-for position in range(18):
-    teampos.append('Pos' + str(position+1))
-    teamcost.append('Cost' + str(position+1))
-    
-    coststr = 'Cost' + str(position+1)
-    posstr = 'Pos' + str(position+1)
-    namestr = 'Name' + str(position+1)
-    
-    teamData[coststr] = []
-    teamData[posstr] = []
-    teamData[namestr] = []
-source2pool = ColumnDataSource(teamData)
 
 
 # Generate colors
@@ -149,7 +157,7 @@ colors2.extend(['#e7298a']*3)   # FWD
 colors2.extend(['#d3d3d3']*4)   # Bench
                 
                 
-p1 = figure(y_range=[], plot_height=700,plot_width = 900, toolbar_location=None,tools=[HoverTool(), TapTool()], tooltips='GW $name: @$name')
+p1 = figure(y_range=[], plot_height=700,plot_width = 800, toolbar_location=None,tools=[HoverTool(), TapTool()], tooltips='GW $name: @$name')
 p1.hbar_stack(gameweeks, y='Team', height=0.9,color=colors, source=source1, legend=["GW %s" % x for x in gameweeks],line_width = 1,line_color = 'black')
 
 p1.y_range.range_padding = 0.1
@@ -159,18 +167,34 @@ p1.axis.minor_tick_line_color = None
 p1.outline_line_color = None
 p1.title.text = 'Points'
 
-p2 = figure(y_range=[], plot_height=700,toolbar_location=None,tools='hover', tooltips='@$name{0.0 a}')
-p2.hbar_stack(teamcost, y='Team', height=0.9,line_width = 1,line_color = 'black', source=source2pool, color = colors2)
-##              fill_color = factor_cmap(teampos, palette = colors2, factors = ['1','2','3','4','5']))
+p2 = figure(y_range=[], plot_height=700,toolbar_location=None,tools=[HoverTool(), TapTool()], tooltips='@$name{0.0 a}')
+p2.hbar_stack(teamcost, y='Team', height=0.9,line_width = 1,line_color = 'black', source=source1, color = colors2)
 
-p2.y_range.range_padding = 0.1
+p2.y_range.range_padding = p1.y_range.range_padding
 p2.ygrid.grid_line_color = None
-#p2.legend.location = "bottom_right"
 p2.axis.minor_tick_line_color = None
 p2.outline_line_color = None
-p2.yaxis.axis_label = None
+#p2.yaxis.axis_label = p1.yaxis.axis_label 
 p2.title.text  = 'Squad cost'
 
+
+# Table for selected team
+tablesource_team = ColumnDataSource(data = dict(position=[], web_name=[], club=[], cost=[]))
+tablesource_bench = ColumnDataSource(data = dict(position=[], web_name=[], club=[], cost=[]))
+
+columns = [
+        TableColumn(field='position', title='Pos'),
+        TableColumn(field='web_name', title='Name'),
+        TableColumn(field='club', title='Club'),
+        TableColumn(field='cost', title='Cost'),
+        ]
+
+teamtable = DataTable(source=tablesource_team, columns=columns, width=350, height=300, name = '', index_position = None)
+benchtable = DataTable(source=tablesource_bench, columns=columns, width=350, height=200, name = 'Bench', index_position = None)
+
+teamtableheader = Div(text = "Team")
+benchtableheader = Div(text = '<b><font color="#444444"> Bench<b></font>')
+#444444
 def leagueupdate():
 
 #    reset_output(p)
@@ -204,16 +228,22 @@ def leagueupdate():
         # Current team value distribution
         cost_teamsum = [0,0,0,0,0] 
         formation_team = [None] * 15
+        positionstr_team = [None] * 15 
         cost_team = [None] * 15
-        players_team = [None] * 15 
+        web_name = [None] * 15
+        club_name = [None] * 15 
         for footballer in memberteam['picks']:
             
             position = data[data.id == footballer['element']]['element_type'].iloc[0]
+            positionstr = data[data.id == footballer['element']]['position'].iloc[0]
             cost = data[data.id == footballer['element']]['now_cost'].iloc[0]
             name =  data[data.id == footballer['element']]['web_name'].iloc[0]
+            club =  data[data.id == footballer['element']]['team_name'].iloc[0]
             
             cost_team[footballer['position']-1] = cost
-            players_team[footballer['position']-1] = name
+            web_name[footballer['position']-1] = name
+            club_name[footballer['position']-1] = club
+            positionstr_team[footballer['position']-1] = positionstr
             
             if footballer['position']<12:
                 formation_team[footballer['position']-1] = str(position)
@@ -221,9 +251,11 @@ def leagueupdate():
             else:
                 formation_team[footballer['position']-1] = '5'
                 cost_teamsum[4] = cost_teamsum[4] + cost
-            
+        
+        teamdata[teamname]['team posstr'] = positionstr_team
+        teamdata[teamname]['team webname'] = web_name
+        teamdata[teamname]['team clubs'] = club_name    
         teamdata[teamname]['team cost'] = cost_team
-        teamdata[teamname]['team players'] = players_team
         teamdata[teamname]['team cost summed'] = cost_teamsum
         teamdata[teamname]['team formation'] = formation_team
     
@@ -231,22 +263,46 @@ def leagueupdate():
     team_names.reverse()
 
     # Re-format data to fit Bokeh
-    GWpoints = {'Team' : team_names}
+    teamDict = {'Team' : team_names}
+    # Data for plot 1:
     for gameweek in range(GW+1):
-        instr = str(gameweek+1)
-        GWpoints[instr] = []
+        GWstr = str(gameweek+1)
+        teamDict[GWstr] = [None] *len(team_names)
+        teamind = 0
         for team in team_names:
-            GWpoints[instr].append(teamdata[team]['GW net points'][gameweek])
+            teamDict[GWstr][teamind] = teamdata[team]['GW net points'][gameweek]
+            teamind += 1
 
    
-    teamDict = {'Team' : team_names}
+    # Data for table:
+    for position in range(15):
+       
+        posstr = 'TablePos' + str(position+1)
+        namestr = 'TableName' + str(position+1)
+        clubstr = 'TableClub' +  str(position+1)
+        coststr = 'TableCost' + str(position+1)
+        
+        teamDict[posstr] = [None] *  len(team_names)
+        teamDict[namestr] = [None] *  len(team_names)
+        teamDict[clubstr] = [None] *  len(team_names)
+        teamDict[coststr] = [None] * len(team_names)
+        
+        teamind = 0
+        for teamname in team_names:
+            teamDict[posstr][teamind] = teamdata[teamname]['team posstr'][position]
+            teamDict[namestr][teamind] = teamdata[teamname]['team webname'][position]
+            teamDict[clubstr][teamind] = teamdata[teamname]['team clubs'][position]
+            teamDict[coststr][teamind] = teamdata[teamname]['team cost'][position]
+            teamind += 1
+        
+        
+    
     poscount = {team:0 for team in team_names}
     for position in range(18):
 
         coststr = 'Cost' + str(position+1)
         posstr = 'Pos' + str(position+1)
         namestr = 'Name' + str(position+1)
-        
         
         teamDict[coststr] = [0] * len(team_names)
         teamDict[posstr] = ['0'] *  len(team_names)
@@ -260,60 +316,90 @@ def leagueupdate():
             if position == 0 and currentpos == 1: # Add GK
                 teamDict[coststr][teamind] = teamdata[teamname]['team cost'][poscount[teamname]]
                 teamDict[posstr][teamind] = str(teamdata[teamname]['team formation'][poscount[teamname]])
-                teamDict[namestr][teamind] = teamdata[teamname]['team players'][poscount[teamname]]
-                
                 poscount[teamname] += 1
                 
             elif position > 0 and position < 6 and currentpos == 2: #Add Def
                 teamDict[coststr][teamind] = teamdata[teamname]['team cost'][poscount[teamname]]
                 teamDict[posstr][teamind] = str(teamdata[teamname]['team formation'][poscount[teamname]])
-                teamDict[namestr][teamind] = teamdata[teamname]['team players'][poscount[teamname]]
                 poscount[teamname] += 1
                 
             elif position > 5 and position < 11 and currentpos == 3: #Add Mid
                 teamDict[coststr][teamind] = teamdata[teamname]['team cost'][poscount[teamname]]
                 teamDict[posstr][teamind] = str(teamdata[teamname]['team formation'][poscount[teamname]])
-                teamDict[namestr][teamind] = teamdata[teamname]['team players'][poscount[teamname]]
                 poscount[teamname] += 1
                 
             elif position > 10 and position < 14 and currentpos == 4:  #Add Fwd
                 teamDict[coststr][teamind] = teamdata[teamname]['team cost'][poscount[teamname]]
                 teamDict[posstr][teamind] = str(teamdata[teamname]['team formation'][poscount[teamname]])
-                teamDict[namestr][teamind] = teamdata[teamname]['team players'][poscount[teamname]]
                 poscount[teamname] += 1
                 
             elif position > 13 and currentpos == 5:               #Add Bench
                 teamDict[coststr][teamind] = teamdata[teamname]['team cost'][poscount[teamname]]
                 teamDict[posstr][teamind] = str(teamdata[teamname]['team formation'][poscount[teamname]])
-                teamDict[namestr][teamind] = teamdata[teamname]['team players'][poscount[teamname]]
                 poscount[teamname] += 1
                
             teamind += 1
 
     p1.y_range.factors = team_names
     p2.y_range.factors = team_names
-    source1.data = GWpoints
-    source2pool.data = teamDict
+    source1.data = teamDict
+#    source1.data = GWpoints
+#    source2pool.data = teamDict
 
 def selectupdate(attrname, old, new):
 
     if len(source1.selected.indices)>0:
-    
-        selectionIndex = source1.selected.indices[0]
-        teamDict = {'Team' :  [source2pool.data['Team'][selectionIndex]]}
-       
-        for position in range(18):
-            coststr = 'Cost' + str(position+1)
-            posstr = 'Pos' + str(position+1)
-            teamDict[coststr] = []
-            teamDict[posstr] = [] 
             
-            teamDict[coststr].append(source2pool.data[coststr][selectionIndex])
-            teamDict[posstr].append(source2pool.data[posstr][selectionIndex])
-            
-        source2.data = teamDict
         
-        p2.y_range.factors = teamDict['Team']
+        # Team
+        selectionIndex = source1.selected.indices[0]
+        positions = []
+        names = []
+        clubs = []
+        costs = []
+        teamtableheader.text = '<b><font color="#444444">'+ source1.data['Team'][selectionIndex] + '<b></font>'
+        
+        
+        for position in range(11):
+            posstr = 'TablePos' + str(position+1)
+            namestr = 'TableName' + str(position+1)
+            clubstr = 'TableClub' +  str(position+1)
+            coststr = 'TableCost' + str(position+1)
+
+            positions.append(source1.data[posstr][selectionIndex])
+            names.append(source1.data[namestr][selectionIndex])
+            clubs.append(source1.data[clubstr][selectionIndex])
+            costs.append(source1.data[coststr][selectionIndex])
+             
+        tablesource_team.data = dict(
+                position = positions,
+                web_name = names,
+                club = clubs,
+                cost = costs)
+        
+        # Bench
+        positions = []
+        names = []
+        clubs = []
+        costs = []
+       
+        for position in range(11,15):
+            posstr = 'TablePos' + str(position+1)
+            namestr = 'TableName' + str(position+1)
+            clubstr = 'TableClub' +  str(position+1)
+            coststr = 'TableCost' + str(position+1)
+
+            positions.append(source1.data[posstr][selectionIndex])
+            names.append(source1.data[namestr][selectionIndex])
+            clubs.append(source1.data[clubstr][selectionIndex])
+            costs.append(source1.data[coststr][selectionIndex])
+             
+        tablesource_bench.data = dict(
+                position = positions,
+                web_name = names,
+                club = clubs,
+                cost = costs)
+        
         
 leagueupdate()  # initial load of the data    
     
@@ -323,7 +409,7 @@ leagueupdate()  # initial load of the data
 
 leagueID.on_change('value', lambda attr, old, new: leagueupdate())
 
-#source1.on_change('selected', selectupdate)
+source1.on_change('selected', selectupdate)
 
 sizing_mode = 'fixed'  # 'scale_width' also looks nice with this example
 
@@ -331,7 +417,7 @@ sizing_mode = 'fixed'  # 'scale_width' also looks nice with this example
 
 l = layout([
     leagueID,
-    [p1,p2],
+    [p1,p2,[teamtableheader,teamtable,benchtableheader,benchtable]],
 ])
 
 
