@@ -192,9 +192,9 @@ columns = [
 teamtable = DataTable(source=tablesource_team, columns=columns, width=350, height=300, name = '', index_position = None)
 benchtable = DataTable(source=tablesource_bench, columns=columns, width=350, height=200, name = 'Bench', index_position = None)
 
-teamtableheader = Div(text = "Team")
-benchtableheader = Div(text = '<b><font color="#444444"> Bench<b></font>')
-#444444
+teamtableheader = Div(text = '<b><font color="#444444">Team<b></font>')
+benchtableheader = Div(text = '<b><font color="#444444">Bench<b></font>')
+
 def leagueupdate():
 
 #    reset_output(p)
