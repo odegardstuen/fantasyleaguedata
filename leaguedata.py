@@ -157,7 +157,7 @@ p1.ygrid.grid_line_color = None
 p1.legend.location = "bottom_right"
 p1.axis.minor_tick_line_color = None
 p1.outline_line_color = None
-p1.title = 'Points'
+p1.title.text = 'Points'
 
 p2 = figure(y_range=[], plot_height=700,toolbar_location=None,tools='hover', tooltips='@$name{0.0 a}')
 p2.hbar_stack(teamcost, y='Team', height=0.9,line_width = 1,line_color = 'black', source=source2pool, color = colors2)
@@ -169,7 +169,7 @@ p2.ygrid.grid_line_color = None
 p2.axis.minor_tick_line_color = None
 p2.outline_line_color = None
 p2.yaxis.axis_label = None
-p2.title = 'Squad cost'
+p2.title.text  = 'Squad cost'
 
 def leagueupdate():
 
