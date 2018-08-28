@@ -149,7 +149,7 @@ colors2.extend(['#e7298a']*3)   # FWD
 colors2.extend(['#d3d3d3']*4)   # Bench
                 
                 
-p1 = figure(y_range=[], plot_height=1100,toolbar_location=None,tools=[HoverTool(), TapTool()], tooltips='GW $name: @$name')
+p1 = figure(y_range=[], plot_height=700,plot_width = 900, toolbar_location=None,tools=[HoverTool(), TapTool()], tooltips='GW $name: @$name')
 p1.hbar_stack(gameweeks, y='Team', height=0.9,color=colors, source=source1, legend=["GW %s" % x for x in gameweeks],line_width = 1,line_color = 'black')
 
 p1.y_range.range_padding = 0.1
