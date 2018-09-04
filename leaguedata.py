@@ -19,7 +19,8 @@ from bokeh.io import curdoc
 leagueID = TextInput(title="League ID:")
 #pageNo = TextInput(title="League ID:")
 
-leagueID.value = '452368'
+
+#leagueID.value = '452368'
 #leagueID.value = '570516'
 #leagueID.value = '718332'
 # Enter league ID
@@ -91,20 +92,15 @@ data['now_cost'] = data['now_cost']/10
 gameweeks = []
 teampos = []
 teamcost = []  
+
 teamData = {'Team' : []}
-#GWpoints = {'Teams' : []}
+teamData['Hits'] = []
+teamData['TotalPoints'] = []
 for GW in range(currentGW):
     gameweeks.append(str(GW+1))
     instr = str(GW+1)
     teamData[instr] = []
-#    GWpoints[instr] = []
-#source1 = ColumnDataSource(GWpoints)
 
-
-# Default source2pool
-#teampos = []
-#teamcost = []  
-#teamData = {'Team' : []}
 for position in range(18):
     teampos.append('Pos' + str(position+1))
     teamcost.append('Cost' + str(position+1))
@@ -117,9 +113,6 @@ for position in range(18):
     teamData[posstr] = []
     teamData[namestr] = []
 source1 = ColumnDataSource(teamData)
-
-#source2pool = ColumnDataSource(teamData)
-
 
 
 # Default source 2
@@ -156,9 +149,12 @@ colors2.extend(['#7570b3']*5)   # MID
 colors2.extend(['#e7298a']*3)   # FWD
 colors2.extend(['#d3d3d3']*4)   # Bench
                 
+
+leaguetitle = Div(text = '')
                 
 p1 = figure(y_range=[], plot_height=700,plot_width = 800, toolbar_location=None,tools=[HoverTool(), TapTool()], tooltips='GW $name: @$name')
 p1.hbar_stack(gameweeks, y='Team', height=0.9,color=colors, source=source1, legend=["GW %s" % x for x in gameweeks],line_width = 1,line_color = 'black')
+#p1.hbar(right = 'Hits', y='Team', height=0.9,color='red', source=source1,line_width = 1,line_color = 'black')
 
 p1.y_range.range_padding = 0.1
 p1.ygrid.grid_line_color = None
@@ -174,7 +170,6 @@ p2.y_range.range_padding = p1.y_range.range_padding
 p2.ygrid.grid_line_color = None
 p2.axis.minor_tick_line_color = None
 p2.outline_line_color = None
-#p2.yaxis.axis_label = p1.yaxis.axis_label 
 p2.title.text  = 'Squad cost'
 
 
@@ -196,9 +191,7 @@ teamtableheader = Div(text = '<b><font color="#444444">Team<b></font>')
 benchtableheader = Div(text = '<b><font color="#444444">Bench<b></font>')
 
 def leagueupdate():
-
-#    reset_output(p)
-    
+ 
     # Get league participants
     leagueinfo = requests.get('https://fantasy.premierleague.com/drf/leagues-classic-standings/'+ leagueID.value).json()
     memberIDs = []
@@ -264,6 +257,7 @@ def leagueupdate():
 
     # Re-format data to fit Bokeh
     teamDict = {'Team' : team_names}
+    teamDict['Hits'] = [0] *len(team_names)
     # Data for plot 1:
     for gameweek in range(GW+1):
         GWstr = str(gameweek+1)
@@ -271,6 +265,7 @@ def leagueupdate():
         teamind = 0
         for team in team_names:
             teamDict[GWstr][teamind] = teamdata[team]['GW net points'][gameweek]
+            teamDict['Hits'][teamind] -= teamdata[team]['GW transfercost'][gameweek]
             teamind += 1
 
    
@@ -295,7 +290,11 @@ def leagueupdate():
             teamDict[coststr][teamind] = teamdata[teamname]['team cost'][position]
             teamind += 1
         
-        
+    teamDict['TotalPoints'] = [None] *  len(team_names)
+    teamind = 0
+    for teamname in team_names:
+        teamDict['TotalPoints'][teamind] = teamdata[teamname]['total points'][-1]
+        teamind += 1
     
     poscount = {team:0 for team in team_names}
     for position in range(18):
@@ -343,6 +342,9 @@ def leagueupdate():
     p1.y_range.factors = team_names
     p2.y_range.factors = team_names
     source1.data = teamDict
+    leaguetitle.text = '<h3><strong><br />' + leagueinfo['league']['name'] + '</strong></h3>'
+    
+    
 #    source1.data = GWpoints
 #    source2pool.data = teamDict
 
@@ -357,7 +359,9 @@ def selectupdate(attrname, old, new):
         names = []
         clubs = []
         costs = []
-        teamtableheader.text = '<b><font color="#444444">'+ source1.data['Team'][selectionIndex] + '<b></font>'
+        
+        pointsstr = ': ' + str(source1.data['TotalPoints'][selectionIndex]) + ' Points'
+        teamtableheader.text = '<b><font color="#444444">'+ source1.data['Team'][selectionIndex] + pointsstr +  '<b></font>'
         
         
         for position in range(11):
@@ -400,8 +404,8 @@ def selectupdate(attrname, old, new):
                 club = clubs,
                 cost = costs)
         
-        
-leagueupdate()  # initial load of the data    
+if leagueID.value != '' :  
+    leagueupdate()  # initial load of the data    
     
 #controls = [leagueID]
 #for control in controls:
@@ -416,7 +420,7 @@ sizing_mode = 'fixed'  # 'scale_width' also looks nice with this example
 #inputs = widgetbox(*controls, sizing_mode=sizing_mode)
 
 l = layout([
-    leagueID,
+    [leagueID, leaguetitle],
     [p1,p2,[teamtableheader,teamtable,benchtableheader,benchtable]],
 ])
 
